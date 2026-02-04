@@ -45,13 +45,23 @@ CREATE TABLE centres (
     region VARCHAR2(100)
 ) TABLESPACE ts_vaccination_primary;
 
+-- --- Table des rôles ---
+CREATE TABLE roles (
+    role_id NUMBER PRIMARY KEY,
+    role_name VARCHAR2(50) NOT NULL
+) TABLESPACE ts_vaccination_primary;
+
+-- --- Table du personnel avec FK vers roles ---
 CREATE TABLE personnel (
     personnel_id NUMBER PRIMARY KEY,
     full_name VARCHAR2(100),
-    role VARCHAR2(50),
-    centre_id NUMBER
+    role_id NUMBER,  -- référence vers roles
+    centre_id NUMBER,
+    CONSTRAINT fk_personnel_role FOREIGN KEY (role_id)
+        REFERENCES roles(role_id)
 ) TABLESPACE ts_vaccination_primary;
 
+-- --- Table historique vaccination ---
 CREATE TABLE historique_vaccination (
     vaccination_id NUMBER PRIMARY KEY,
     patient_id NUMBER,
@@ -59,6 +69,7 @@ CREATE TABLE historique_vaccination (
     centre_id NUMBER,
     dose_number NUMBER,
     vaccination_date DATE
+) TABLESPACE ts_vaccination_primary;
 
 CREATE INDEX idx_patient_vaccination
 ON historique_vaccination(patient_id)
