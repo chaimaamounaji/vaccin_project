@@ -1,0 +1,118 @@
+
+
+
+
+
+ALTER SESSION SET CONTAINER = PDB_VACCINATION_PRIMARY;
+
+-- Tablespace pour données brutes
+CREATE TABLESPACE ts_vaccination_primary
+DATAFILE 'ts_vaccination_primary01.dbf' SIZE 100M;
+
+ALTER SESSION SET CONTAINER = PDB_VACCINATION_STANDBY;
+
+-- Tablespace chiffré pour Standby
+CREATE TABLESPACE ts_vaccination_standby_enc
+DATAFILE 'ts_vaccination_standby01.dbf' SIZE 100M
+ENCRYPTION USING 'AES256'
+DEFAULT STORAGE (ENCRYPT);
+
+ALTER SESSION SET CONTAINER = PDB_VACCINATION_PRIMARY;
+
+CREATE TABLE patients (
+    patient_id NUMBER PRIMARY KEY,
+    full_name VARCHAR2(100),
+    birth_date DATE,
+    gender CHAR(1)
+) TABLESPACE ts_vaccination_primary;
+
+CREATE TABLE vaccins (
+    vaccin_id NUMBER PRIMARY KEY,
+    vaccin_name VARCHAR2(100),
+    fabricant VARCHAR2(100)
+) TABLESPACE ts_vaccination_primary;
+
+CREATE TABLE centres (
+    centre_id NUMBER PRIMARY KEY,
+    centre_name VARCHAR2(100),
+    region VARCHAR2(100)
+) TABLESPACE ts_vaccination_primary;
+
+CREATE TABLE personnel (
+    personnel_id NUMBER PRIMARY KEY,
+    full_name VARCHAR2(100),
+    role VARCHAR2(50),
+    centre_id NUMBER
+) TABLESPACE ts_vaccination_primary;
+
+CREATE TABLE historique_vaccination (
+    vaccination_id NUMBER PRIMARY KEY,
+    patient_id NUMBER,
+    vaccin_id NUMBER,
+    centre_id NUMBER,
+    dose_number NUMBER,
+    vaccination_date DATE
+
+CREATE INDEX idx_patient_vaccination
+ON historique_vaccination(patient_id)
+TABLESPACE ts_vaccination_primary;
+
+CREATE INDEX idx_vaccination_date
+ON historique_vaccination(vaccination_date)
+TABLESPACE ts_vaccination_primary;
+
+ALTER SESSION SET CONTAINER = PDB_VACCINATION_STANDBY;
+
+CREATE TABLE vaccination_records_standby (
+    vaccination_id NUMBER,
+    patient_id NUMBER,
+    vaccin_id NUMBER,
+    centre_id NUMBER,
+    dose_number NUMBER,
+    vaccination_date DATE
+) TABLESPACE ts_vaccination_standby_enc;
+
+CREATE INDEX idx_standby_patient
+ON vaccination_records_standby(patient_id)
+TABLESPACE ts_vaccination_standby_enc;
+
+CREATE INDEX idx_standby_vaccination_date
+ON vaccination_records_standby(vaccination_date)
+TABLESPACE ts_vaccination_standby_enc;
+
+-- Primary / Standby setup (déjà dans ton code)
+ARCHIVE LOG LIST;
+
+SHUTDOWN IMMEDIATE;
+STARTUP MOUNT;
+ALTER DATABASE ARCHIVELOG;
+ALTER DATABASE OPEN;
+
+ALTER DATABASE FORCE LOGGING;
+
+ALTER DATABASE ADD STANDBY LOGFILE SIZE 200M;
+ALTER DATABASE ADD STANDBY LOGFILE SIZE 200M;
+ALTER DATABASE ADD STANDBY LOGFILE SIZE 200M;
+
+-- Configure log destinations
+ALTER SYSTEM SET LOG_ARCHIVE_CONFIG='DG_CONFIG=(PRIMARY,STANDBY)';
+
+ALTER SYSTEM SET LOG_ARCHIVE_DEST_1='LOCATION=/arch/primary VALID_FOR=(ALL_LOGFILES,ALL_ROLES) DB_UNIQUE_NAME=PRIMARY';
+ALTER SYSTEM SET LOG_ARCHIVE_DEST_2='SERVICE=STANDBY VALID_FOR=(ONLINE_LOGFILES,PRIMARY_ROLE) DB_UNIQUE_NAME=STANDBY';
+
+ALTER SYSTEM SET FAL_SERVER=STANDBY;
+ALTER SYSTEM SET FAL_CLIENT=PRIMARY;
+
+-- Standby configuration
+ALTER SYSTEM SET LOG_ARCHIVE_DEST_1='LOCATION=/arch/standby VALID_FOR=(ALL_LOGFILES,ALL_ROLES) DB_UNIQUE_NAME=STANDBY';
+ALTER SYSTEM SET LOG_ARCHIVE_DEST_2='SERVICE=PRIMARY VALID_FOR=(ONLINE_LOGFILES,STANDBY_ROLE) DB_UNIQUE_NAME=PRIMARY';
+ALTER SYSTEM SET FAL_SERVER=PRIMARY;
+ALTER SYSTEM SET FAL_CLIENT=STANDBY;
+
+-- Start managed recovery on Standby
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE USING CURRENT LOGFILE DISCONNECT FROM SESSION;
+
+SELECT PROCESS, STATUS FROM V$MANAGED_STANDBY;
+
+
+) TABLESPACE ts_vaccination_primary;
